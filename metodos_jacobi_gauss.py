@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def sanssenfeld(A):
     """
@@ -23,7 +24,7 @@ def sanssenfeld(A):
 
     # Pega o maior valor de B
     max_x = max(B)
-    print(max_x)
+    
     return max_x < 1  # Retorna True se a soma for menor que 1 (convergência), senão retorna False
 
 
@@ -42,8 +43,6 @@ def converge(A):
                 sum += A[i][j]
         # Verifica se o valor da diagonal é maior que a soma dos valores fora dela
         if abs(A[i][i]) < sum:
-            print(sum)
-            print(A[i][i])
             return False  # Se a matriz não for diagonalmente dominante, retorna False
 
     return True  # Se for diagonalmente dominante, retorna True
@@ -55,11 +54,6 @@ def jacobi(A, b, x0, tol, N):
     A função retorna a solução x, e os pontos de iteração gerados durante o processo.
     A função também verifica a convergência usando os métodos de Sassenfeld e diagonalmente dominante.
     """
-    c = converge(A)  # Verifica se a matriz A é diagonalmente dominante
-    if not c:
-        c = sanssenfeld(A)  # Se não for, verifica usando o critério de Sassenfeld
-        if not c:
-            return -1  # Se o sistema não for convergente, retorna -1
 
     n = np.shape(A)[0]  # Obtém o número de incógnitas (tamanho do vetor de solução)
     x = np.zeros(n)  # Inicializa o vetor de solução x com zeros
@@ -79,7 +73,7 @@ def jacobi(A, b, x0, tol, N):
             x[i] /= A[i, i]  # Divide pela diagonal de A para isolar x[i]
 
         # Armazena o ponto gerado nesta iteração
-        print("interação ", x)
+        
         pontos_iteracao.append(np.copy(x))  # Adiciona a solução da iteração à lista
 
         # Verifica a tolerância: se a diferença entre x e x0 for menor que tol, convergiu
@@ -89,4 +83,42 @@ def jacobi(A, b, x0, tol, N):
         # Prepara para a próxima iteração, atualizando x0 com a solução atual
         x0 = np.copy(x)
 
-    return x  # Retorna a solução após o número máximo de iterações
+    return x, pontos_iteracao  # Retorna a solução após o número máximo de iterações
+
+def gauss_seidel(A, b, x0, tol, N):
+    n = len(A)
+    x = np.copy(x0)
+    pontos_iteracao = []
+    
+    for it in range(N):
+        x_old = np.copy(x)
+        
+        for i in range(n):
+            sum_ = b[i]
+            for j in range(n):
+                if i != j:
+                    sum_ -= A[i, j] * x[j]
+            x[i] = sum_ / A[i, i]
+        
+        pontos_iteracao.append(np.copy(x))
+        
+        if np.linalg.norm(x - x_old, np.inf) < tol:
+            return x, pontos_iteracao
+    
+    return x, pontos_iteracao
+
+def calcular_erros(A, b, x0, tol, N):
+    x_real = np.linalg.solve(A, b)  # Solução exata do sistema
+    
+    x_jacobi, pontos_jacobi = jacobi(A, b, x0, tol, N)
+    x_gauss, pontos_gauss = gauss_seidel(A, b, x0, tol, N)
+    
+    tabela = []
+    for i in range(min(len(pontos_jacobi), len(pontos_gauss))):
+        erro_jacobi = np.linalg.norm(pontos_jacobi[i] - x_real, np.inf)
+        erro_gauss = np.linalg.norm(pontos_gauss[i] - x_real, np.inf)
+        tabela.append([i+1, erro_jacobi, erro_gauss])
+    
+    df = pd.DataFrame(tabela, columns=["Iteração", "Erro Jacobi", "Erro Gauss-Seidel"])
+    return df
+
